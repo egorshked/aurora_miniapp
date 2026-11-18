@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>VPN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#071226; --bg2:#0c1d3a; --card:#10264a; --card2:#163463;
+    --line:rgba(120,170,255,.14); --text:#eaf2ff; --muted:#8fa8cf;
+    --blue:#2f7bff; --blue2:#58a6ff; --cyan:#3fd0ff; --ok:#33d17a; --warn:#ffb340; --bad:#ff5a6a;
+    --r:18px; --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-size:15px;min-height:100%}
+  body{background:radial-gradient(120% 60% at 50% -10%,#16397a 0%,var(--bg) 60%) fixed}
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+  input{font:inherit;color:var(--text)}
+  .app{max-width:520px;margin:0 auto;padding:16px 16px calc(96px + var(--safe-b))}
+  .page{display:none;animation:fade .25s ease}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.3px}
+  h2{font-size:17px;font-weight:650;margin:22px 0 10px}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .row{display:flex;align-items:center;gap:12px}
+  .between{justify-content:space-between}
+  .card{background:linear-gradient(180deg,var(--card) 0%,var(--bg2) 100%);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .card+.card{margin-top:12px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:14px;font-weight:600;background:linear-gradient(135deg,var(--blue) 0%,#1f5fe0 100%);box-shadow:0 8px 24px rgba(47,123,255,.35);transition:transform .1s}
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:rgba(88,166,255,.12);box-shadow:none;color:var(--blue2)}
+  .btn.sm{padding:9px 14px;width:auto;font-size:14px;border-radius:12px}
+  .btn:disabled{opacity:.45;box-shadow:none}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(88,166,255,.14);color:var(--blue2)}
+  .pill.ok{background:rgba(51,209,122,.14);color:var(--ok)}
+  .pill.bad{background:rgba(255,90,106,.14);color:var(--bad)}
+  .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+
+  /* header */
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--cyan));display:grid;place-items:center;font-weight:700;overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .balance{text-align:right}
+  .balance b{font-size:17px}
+
+  /* hero */
+  .hero{position:relative;overflow:hidden;text-align:center;padding:26px 16px 20px}
+  .shield{width:120px;height:120px;margin:4px auto 14px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,rgba(63,208,255,.25) 0%,rgba(47,123,255,.08) 60%,transparent 70%);position:relative}
+  .shield::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(88,166,255,.25);animation:pulse 2.4s infinite}
+  .shield.off::before{animation:none;border-color:rgba(255,90,106,.25)}
+  @keyframes pulse{0%{transform:scale(.92);opacity:1}100%{transform:scale(1.15);opacity:0}}
+  .shield svg{width:58px;height:58px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+  .stat{background:rgba(7,18,38,.5);border:1px solid var(--line);border-radius:14px;padding:10px 6px}
+  .stat b{display:block;font-size:16px}
+  .stat span{font-size:11px;color:var(--muted)}
+  .progress{height:8px;border-radius:8px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:10px}
+  .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:8px}
+
+  .key{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:rgba(7,18,38,.6);border:1px dashed var(--line);border-radius:12px;padding:12px;word-break:break-all;color:var(--blue2);margin:10px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:8px}
+  .tile .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:rgba(47,123,255,.18);font-size:18px}
+  .tile b{font-size:14px}
+
+  /* list */
+  .list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .item{display:flex;align-items:center;gap:12px;padding:14px 16px;width:100%;text-align:left}
+  .item+.item{border-top:1px solid var(--line)}
+  .item .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(47,123,255,.18);font-size:17px;flex:none}
+  .item .grow{flex:1;min-width:0}
+  .chev{color:var(--muted)}
+
+  /* plans */
+  .plan{position:relative;display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--r);border:1.5px solid var(--line);background:var(--card);width:100%;text-align:left;transition:.15s}
+  .plan+.plan{margin-top:10px}
+  .plan.sel{border-color:var(--blue);background:linear-gradient(135deg,#143066,#0f2550);box-shadow:0 0 0 4px rgba(47,123,255,.15)}
+  .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex:none;display:grid;place-items:center}
+  .plan.sel .radio{border-color:var(--blue)}
+  .plan.sel .radio::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--blue)}
+  .plan .price{margin-left:auto;text-align:right}
+  .plan .price b{font-size:18px}
+  .plan .old{text-decoration:line-through;color:var(--muted);font-size:12px}
+  .badge{position:absolute;top:-9px;right:14px;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .features{display:grid;gap:10px}
+  .feat{display:flex;gap:10px;align-items:center;font-size:14px}
+  .feat i{color:var(--cyan);font-style:normal}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+  .seg button{flex:1;padding:9px;border-radius:10px;font-size:14px;font-weight:600;color:var(--muted)}
+  .seg button.on{background:var(--blue);color:#fff}
+
+  /* bonuses */
+  .bonus-hero{text-align:center;padding:22px 16px;background:linear-gradient(135deg,#1b4fc4 0%,#0f2f7a 60%,#0b1f4f 100%);border:none;position:relative;overflow:hidden}
+  .bonus-hero::after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;background:rgba(63,208,255,.18);top:-90px;right:-70px}
+  .bonus-hero b.big{font-size:38px;display:block;margin:4px 0}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:14px 0}
+  .day{border-radius:12px;padding:8px 0;text-align:center;font-size:11px;background:rgba(7,18,38,.55);border:1px solid var(--line);color:var(--muted)}
+  .day b{display:block;font-size:13px;color:var(--text);margin-top:2px}
+  .day.done{background:rgba(47,123,255,.25);border-color:var(--blue);color:var(--blue2)}
+  .day.today{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(63,208,255,.25)}
+  .task{display:flex;align-items:center;gap:12px;padding:14px 16px}
+  .task+.task{border-top:1px solid var(--line)}
+  .task .rw{font-weight:700;color:var(--cyan);font-size:13px;white-space:nowrap}
+  .inputrow{display:flex;gap:8px;margin-top:10px}
+  .inp{flex:1;background:rgba(7,18,38,.6);border:1px solid var(--line);border-radius:12px;padding:12px;outline:none;text-transform:uppercase}
+  .inp:focus{border-color:var(--blue)}
+  .lvl{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .lvl::-webkit-scrollbar{display:none}
+  .lvl div{flex:none;min-width:104px;padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:12px}
+  .lvl div.cur{border-color:var(--blue);background:#143066}
+  .lvl b{display:block;font-size:14px;margin-bottom:2px}
+
+  /* servers */
+  .srv .flag{font-size:22px;width:34px;text-align:center}
+  .ping{font-size:12px;font-weight:600}
+  .toggle{width:46px;height:28px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;flex:none;transition:.2s}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
+  .toggle.on{background:var(--blue)}
+  .toggle.on::after{left:21px}
+
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  details+details{margin-top:8px}
+  summary{font-weight:600;list-style:none;display:flex;justify-content:space-between;cursor:pointer}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--blue2);font-size:20px;line-height:1}
+  details[open] summary::after{content:"–"}
+  details p{margin-top:10px;color:var(--muted);font-size:14px;line-height:1.5}
+
+  .steps{counter-reset:s;display:grid;gap:12px}
+  .step{display:flex;gap:12px;align-items:flex-start;font-size:14px;line-height:1.45}
+  .step::before{counter-increment:s;content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;background:var(--blue);display:grid;place-items:center;font-weight:700;font-size:13px}
+
+  /* tab bar */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px 12px calc(8px + var(--safe-b));background:rgba(8,20,42,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line)}
+  .tabbar .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;font-weight:600;color:var(--muted);position:relative;transition:color .15s}
+  .tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:var(--blue2)}
+  .tab.on::before{content:"";position:absolute;top:-8px;width:28px;height:3px;border-radius:0 0 4px 4px;background:var(--blue2)}
+  .tab .nb{position:absolute;top:2px;left:calc(50% + 6px);background:var(--bad);color:#fff;font-size:10px;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px}
+
+  /* sheet & toast */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;opacity:0;pointer-events:none;transition:.2s}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg2);border-radius:22px 22px 0 0;border-top:1px solid var(--line);padding:10px 18px calc(22px + var(--safe-b));transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow:auto}
+  .sheet.show{transform:none}
+  .sheet .grab{width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+  .sheet .inner{max-width:520px;margin:0 auto}
+  .toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-140%);z-index:60;background:#1a3b78;border:1px solid var(--line);padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:transform .25s;white-space:nowrap}
+  .toast.show{transform:translate(-50%,0)}
+  .confetti{position:fixed;inset:0;pointer-events:none;z-index:70}
+  .center{text-align:center}
+  .mt{margin-top:12px}.mt2{margin-top:20px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= ГЛАВНАЯ ================= -->
+  <section class="page active" id="p-home">
+    <div class="top">
+      <div class="row">
+        <div class="avatar" id="avatar">U</div>
+        <div>
+          <div class="small muted">Привет,</div>
+          <b id="uname">Пользователь</b>
+        </div>
+      </div>
+      <div class="balance">
+        <div class="small muted">Бонусы</div>
+        <b id="hdrBalance">0 ₽</b>
+      </div>
+    </div>
+
+    <div class="card hero">
+      <div id="subPill" class="pill ok"><span class="dot"></span><span>Подписка активна</span></div>
+      <div class="shield" id="shield">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path id="shieldMark" d="M9 12l2 2 4-4"/></svg>
+      </div>
+      <h1 id="daysLeft">23 дня</h1>
+      <div class="muted small" id="untilDate">до 11 декабря 2026</div>
+      <div class="progress"><i id="subBar" style="width:76%"></i></div>
+      <div class="stats">
+        <div class="stat"><b id="stDevices">2/3</b><span>устройства</span></div>
+        <div class="stat"><b>∞</b><span>трафик</span></div>
+        <div class="stat"><b id="stServer">🇳🇱</b><span>сервер</span></div>
+      </div>
+      <button class="btn mt2" onclick="openHapp()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+        Подключиться в Happ
+      </button>
+      <button class="btn ghost mt" onclick="go('plans')">Продлить подписку</button>
+    </div>
+
+    <h2>Ваш ключ</h2>
+    <div class="card">
+      <div class="row between"><span class="small muted">Ссылка подписки</span><span class="pill">VLESS</span></div>
+      <div class="key" id="keyBox">—</div>
+      <div class="grid2">
+        <button class="btn ghost sm" style="width:100%" onclick="copyKey()">📋 Копировать</button>
+        <button class="btn ghost sm" style="width:100%" onclick="openSheet('qr')">▦ QR-код</button>
+      </div>
+    </div>
+
+    <h2>Быстрые действия</h2>
+    <div class="grid2">
+      <button class="tile" onclick="openSheet('guide')"><div class="ic">📲</div><b>Как подключить</b><span class="small muted">Инструкция за 1 минуту</span></button>
+      <button class="tile" onclick="openSheet('servers')"><div class="ic">🌍</div><b>Локации</b><span class="small muted">Выбор сервера</span></button>
+      <button class="tile" onclick="go('bonus')"><div class="ic">🎁</div><b>Бонусы</b><span class="small muted">Получить дни бесплатно</span></button>
+      <button class="tile" onclick="openSupport()"><div class="ic">💬</div><b>Поддержка</b><span class="small muted">Ответим быстро</span></button>
+    </div>
+
+    <h2>Скачать Happ</h2>
+    <div class="list">
+      <button class="item" onclick="openLink(LINKS.happIos)"><div class="ic"></div><div class="grow"><b>iPhone / iPad</b><div class="small muted">App Store</div></div><span class="chev">›</span></button>
+      <button class="item" onclick="openLink(LINKS.happAndroid)"><div class="ic">🤖</div><div class="grow"><b>Android</b><div class="small muted">Google Play</div></div><span class="chev">›</span></button>
+      <button class="item" onclick="openLink(LINKS.happDesktop)"><div class="ic">💻</div><div class="grow"><b>Windows / macOS</b><div class="small muted">Сайт Happ</div></div><span class="chev">›</span></button>
+    </div>
+  </section>
+
+  <!-- ================= ТАРИФЫ ================= -->
+  <section class="page" id="p-plans">
+    <h1>Тарифы</h1>
+    <p class="muted mt">Без ограничений по трафику и скорости</p>
+
+    <div class="seg mt2" id="devSeg">
+      <button class="on" data-d="1">1 устройство</button>
+      <button data-d="3">3 устройства</button>
+      <button data-d="5">5 устройств</button>
+    </div>
+
+    <div class="mt2" id="plansList"></div>
+
+    <div class="card mt2">
+      <div class="features">
+        <div class="feat"><i>✓</i> Безлимитный трафик и высокая скорость</div>
+        <div class="feat"><i>✓</i> Работает YouTube, Instagram, ChatGPT</div>
+        <div class="feat"><i>✓</i> Протокол VLESS Reality — сложно заблокировать</div>
+        <div class="feat"><i>✓</i> Несколько стран на выбор</div>
+        <div class="feat"><i>✓</i> Без рекламы и логов</div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="row between">
+        <div><b>Оплатить бонусами</b><div class="small muted" id="payBonusHint">Доступно: 0 ₽</div></div>
+        <div class="toggle" id="useBonus" onclick="toggleBonus()"></div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="row between"><span class="muted">Итого</span><b style="font-size:22px" id="total">0 ₽</b></div>
+      <button class="btn mt" id="payBtn" onclick="pay()">Оплатить</button>
+      <p class="small muted center mt">Оплата картой, СБП или Telegram Stars</p>
+    </div>
+  </section>
+
+  <!-- ================= БОНУСЫ ================= -->
+  <section class="page" id="p-bonus">
+    <h1>Бонусы</h1>
+
+    <div class="card bonus-hero mt2">
+      <div class="small" style="opacity:.8">Ваш бонусный баланс</div>
+      <b class="big" id="bBalance">0 ₽</b>
+      <div class="small" style="opacity:.8">1 бонус = 1 ₽ при оплате подписки</div>
+    </div>
+
+    <h2>Ежедневный бонус</h2>
+    <div class="card">
+      <div class="row between"><b>Заходите каждый день</b><span class="pill" id="streakPill">🔥 0 дней</span></div>
+      <div class="days" id="days"></div>
+      <button class="btn" id="dailyBtn" onclick="claimDaily()">Забрать бонус</button>
+    </div>
+
+    <h2>Пригласи друга</h2>
+    <div class="card">
+      <div class="row" style="align-items:flex-start">
+        <div style="font-size:30px">🤝</div>
+        <div><b>+7 дней вам и другу</b><div class="small muted mt" style="margin-top:4px">И ещё 20% с каждой оплаты друга — на ваш бонусный баланс</div></div>
+      </div>
+      <div class="key" id="refLink">—</div>
+      <div class="grid2">
+        <button class="btn sm" style="width:100%" onclick="shareRef()">Пригласить</button>
+        <button class="btn ghost sm" style="width:100%" onclick="copyRef()">Копировать</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="refCount">0</b><span>приглашено</span></div>
+        <div class="stat"><b id="refPaid">0</b><span>оплатили</span></div>
+        <div class="stat"><b id="refEarn">0 ₽</b><span>заработано</span></div>
+      </div>
+    </div>
+
+    <h2>Уровень</h2>
+    <div class="lvl" id="levels"></div>
+
+    <h2>Задания</h2>
+    <div class="list" id="tasks"></div>
+
+    <h2>Промокод</h2>
+    <div class="card">
+      <div class="small muted">Есть промокод? Введите его здесь</div>
+      <div class="inputrow">
+        <input class="inp" id="promo" placeholder="PROMO2026" maxlength="20">
+        <button class="btn sm" onclick="applyPromo()">Применить</button>
+      </div>
+    </div>
+
+    <h2>История</h2>
+    <div class="list" id="history"></div>
+  </section>
+
+  <!-- ================= ПРОФИЛЬ ================= -->
+  <section class="page" id="p-profile">
+    <div class="card center" style="padding:22px">
+      <div class="avatar" id="avatar2" style="width:72px;height:72px;margin:0 auto 10px;font-size:26px">U</div>
+      <h1 id="uname2" style="font-size:20px">Пользователь</h1>
+      <div class="small muted" id="uid">ID: —</div>
+    </div>
+
+    <h2>Подписка</h2>
+    <div class="list">
+      <div class="item"><div class="ic">📅</div><div class="grow"><b>Действует до</b><div class="small muted" id="pUntil">—</div></div></div>
+      <button class="item" onclick="openSheet('devices')"><div class="ic">📱</div><div class="grow"><b>Мои устройства</b><div class="small muted" id="pDevices">—</div></div><span class="chev">›</span></button>
+      <button class="item" onclick="openSheet('servers')"><div class="ic">🌍</div><div class="grow"><b>Сервер</b><div class="small muted" id="pServer">—</div></div><span class="chev">›</span></button>
+      <button class="item" onclick="openSheet('payments')"><div class="ic">🧾</div><div class="grow"><b>История платежей</b></div><span class="chev">›</span></button>
+    </div>
+
+    <h2>Настройки</h2>
+    <div class="list">
+      <div class="item"><div class="ic">🔔</div><div class="grow"><b>Напоминать о продлении</b><div class="small muted">За 3 дня до окончания</div></div><div class="toggle on" onclick="this.classList.toggle('on');haptic()"></div></div>
+      <div class="item"><div class="ic">🔄</div><div class="grow"><b>Автопродление</b><div class="small muted">Списывать с бонусов в первую очередь</div></div><div class="toggle" onclick="this.classList.toggle('on');haptic()"></div></div>
+      <button class="item" onclick="resetKey()"><div class="ic">🔑</div><div class="grow"><b>Перевыпустить ключ</b><div class="small muted">Если ключ попал к чужим</div></div><span class="chev">›</span></button>
+    </div>
+
+    <h2>Помощь</h2>
+    <div class="list">
+      <button class="item" onclick="openSheet('guide')"><div class="ic">📲</div><div class="grow"><b>Инструкция по подключению</b></div><span class="chev">›</span></button>
+      <button class="item" onclick="openSheet('faq')"><div class="ic">❓</div><div class="grow"><b>Частые вопросы</b></div><span class="chev">›</span></button>
+      <button class="item" onclick="openSupport()"><div class="ic">💬</div><div class="grow"><b>Написать в поддержку</b></div><span class="chev">›</span></button>
+      <button class="item" onclick="openLink(LINKS.channel)"><div class="ic">📢</div><div class="grow"><b>Наш канал</b><div class="small muted">Новости и промокоды</div></div><span class="chev">›</span></button>
+      <button class="item" onclick="openSheet('terms')"><div class="ic">📄</div><div class="grow"><b>Условия и конфиденциальность</b></div><span class="chev">›</span></button>
+    </div>
+    <p class="small muted center mt2">Версия 1.0</p>
+  </section>
+</div>
+
+<!-- ================= TAB BAR ================= -->
+<nav class="tabbar"><div class="in">
+  <button class="tab on" data-t="home"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/></svg>Главная</button>
+  <button class="tab" data-t="plans"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h3"/></svg>Тарифы</button>
+  <button class="tab" data-t="bonus"><svg viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="11.5" rx="2"/><path d="M2.5 9h19v-2.5h-19zM12 6.5v14M12 6.5C10.5 3 6.5 3 7 5.5 7.4 7 12 6.5 12 6.5zM12 6.5C13.5 3 17.5 3 17 5.5 16.6 7 12 6.5 12 6.5z"/></svg>Бонусы<span class="nb" id="bonusNb" style="display:none">1</span></button>
+  <button class="tab" data-t="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>Профиль</button>
+</div></nav>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div class="inner" id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+<canvas class="confetti" id="confetti"></canvas>
+
+<script>
+/* =====================================================================
+   НАСТРОЙКИ — замените на свои
+   ===================================================================== */
+const CONFIG = {
+  API_URL: "",                 // адрес бэкенда бота, например "https://api.myvpn.ru". Пусто = демо-режим
+  BOT_USERNAME: "my_vpn_bot",  // username бота без @ (для реферальной ссылки)
+  SUPPORT: "my_vpn_support",   // username поддержки без @
+};
+const LINKS = {
+  happIos: "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+  happAndroid: "https://play.google.com/store/apps/details?id=com.happproxy",
+  happDesktop: "https://www.happ.su/",
+  channel: "https://t.me/my_vpn_channel",
+};
+// Цены за месяц по кол-ву устройств; скидка — за длительность
+const PRICES = {1:150, 3:250, 5:350};
+const PERIODS = [
+  {m:1,  label:"1 месяц",  disc:0},
+  {m:3,  label:"3 месяца", disc:10, badge:"Популярный"},
+  {m:6,  label:"6 месяцев",disc:15},
+  {m:12, label:"12 месяцев",disc:25, badge:"Выгодно"},
+];
+const SERVERS = [
+  {id:"nl", flag:"🇳🇱", name:"Нидерланды", ping:38},
+  {id:"de", flag:"🇩🇪", name:"Германия",   ping:42},
+  {id:"fi", flag:"🇫🇮", name:"Финляндия",  ping:24},
+  {id:"tr", flag:"🇹🇷", name:"Турция",     ping:61},
+  {id:"us", flag:"🇺🇸", name:"США",        ping:118},
+];
+const DAILY = [5,5,10,10,15,20,50];           // награды за 1..7 день серии
+const LEVELS = [
+  {name:"Новичок", need:0,  perk:"Базовые бонусы"},
+  {name:"Друг",    need:3,  perk:"+5% кэшбэк"},
+  {name:"Партнёр", need:10, perk:"+10% кэшбэк"},
+  {name:"Амбассадор", need:25, perk:"30% с оплат"},
+];
+const TASKS = [
+  {id:"channel", ic:"📢", t:"Подписаться на канал", d:"Новости и промокоды", rw:15, act:()=>openLink(LINKS.channel)},
+  {id:"connect", ic:"⚡", t:"Подключиться впервые", d:"Добавить ключ в Happ", rw:10, act:()=>openHapp()},
+  {id:"story",   ic:"📸", t:"Поделиться в сторис", d:"Расскажите друзьям о нас", rw:25, act:()=>shareStory()},
+  {id:"invite3", ic:"👥", t:"Пригласить 3 друзей", d:"Прогресс: 0/3", rw:100, act:()=>shareRef(), auto:true},
+];
+
+/* =====================================================================
+   TELEGRAM
+   ===================================================================== */
+const tg = window.Telegram?.WebApp;
+if (tg){
+  tg.ready(); tg.expand();
+  try{ tg.setHeaderColor("#071226"); tg.setBackgroundColor("#071226"); tg.setBottomBarColor?.("#08142a"); }catch(e){}
+  tg.BackButton.onClick(()=>{ if(sheetOpen) closeSheet(); else go("home"); });
+}
+const tgUser = tg?.initDataUnsafe?.user || {id:123456789, first_name:"Гость", username:"guest"};
+function haptic(t="light"){ try{ tg?.HapticFeedback?.impactOccurred(t) }catch(e){} }
+function notify(t="success"){ try{ tg?.HapticFeedback?.notificationOccurred(t) }catch(e){} }
+
+/* =====================================================================
+   СОСТОЯНИЕ (демо). При наличии API_URL — грузится с бэкенда
+   ===================================================================== */
+const LS = {
+  get(k,d){ try{ const v=localStorage.getItem("vpn_"+k); return v?JSON.parse(v):d }catch(e){ return d } },
+  set(k,v){ try{ localStorage.setItem("vpn_"+k, JSON.stringify(v)) }catch(e){} }
+};
+let state = LS.get("state", {
+  active:true,
+  until: Date.now()+23*864e5,
+  total: 30,
+  devicesMax:3,
+  devices:[{name:"iPhone 15", last:"сейчас"},{name:"MacBook Air", last:"вчера"}],
+  server:"nl",
+  key:"https://sub.myvpn.ru/s/"+tgUser.id+"-a8f3k2",
+  balance:40,
+  streak:0, lastClaim:0,
+  ref:{count:1, paid:0, earn:0},
+  tasksDone:[],
+  promos:[],
+  history:[{t:"Приветственный бонус", v:40, d:Date.now()-2*864e5}],
+  payments:[{t:"1 месяц · 3 устройства", v:250, d:Date.now()-7*864e5}],
+});
+function save(){ LS.set("state", state); }
+
+async function api(path, body){
+  if(!CONFIG.API_URL) return null;
+  const r = await fetch(CONFIG.API_URL+path, {
+    method: body?"POST":"GET",
+    headers: {"Content-Type":"application/json", "X-Init-Data": tg?.initData || ""},
+    body: body?JSON.stringify(body):undefined
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* =====================================================================
+   НАВИГАЦИЯ
+   ===================================================================== */
+let cur="home";
+function go(t){
+  if(t===cur) return;
+  cur=t; haptic();
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active", p.id==="p-"+t));
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.t===t));
+  window.scrollTo({top:0});
+  if(tg){ t==="home" ? tg.BackButton.hide() : tg.BackButton.show(); }
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>go(b.dataset.t));
+
+/* =====================================================================
+   UI HELPERS
+   ===================================================================== */
+const $ = id=>document.getElementById(id);
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2000); }
+function rub(v){ return v.toLocaleString("ru-RU")+" ₽"; }
+function plural(n,a,b,c){ n=Math.abs(n)%100; const n1=n%10; if(n>10&&n<20) return c; if(n1>1&&n1<5) return b; if(n1===1) return a; return c; }
+function fmtDate(ts){ return new Date(ts).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}); }
+function fmtShort(ts){ return new Date(ts).toLocaleDateString("ru-RU",{day:"numeric",month:"short"}); }
+async function copy(txt){
+  try{ await navigator.clipboard.writeText(txt); }catch(e){
+    const a=document.createElement("textarea"); a.value=txt; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove();
+  }
+  notify(); toast("Скопировано ✓");
+}
+function openLink(u){ haptic(); if(u.startsWith("https://t.me/")) tg?.openTelegramLink ? tg.openTelegramLink(u) : window.open(u); else tg?.openLink ? tg.openLink(u) : window.open(u); }
+function openSupport(){ openLink("https://t.me/"+CONFIG.SUPPORT); }
+
+/* =====================================================================
+   ГЛАВНАЯ
+   ===================================================================== */
+function renderHome(){
+  const name = tgUser.first_name || "друг";
+  ["uname","uname2"].forEach(i=>$(i).textContent=name);
+  $("uid").textContent="ID: "+tgUser.id;
+  ["avatar","avatar2"].forEach(i=>{ const el=$(i); if(tgUser.photo_url) el.innerHTML=`<img src="${tgUser.photo_url}">`; else el.textContent=name[0].toUpperCase(); });
+
+  const left = Math.max(0, Math.ceil((state.until-Date.now())/864e5));
+  const active = state.active && left>0;
+  $("daysLeft").textContent = active ? `${left} ${plural(left,"день","дня","дней")}` : "Нет подписки";
+  $("untilDate").textContent = active ? "до "+fmtDate(state.until) : "Оформите тариф, чтобы подключиться";
+  $("subBar").style.width = active ? Math.min(100, left/state.total*100)+"%" : "0%";
+  const pill=$("subPill");
+  pill.className="pill "+(active?(left<=3?"bad":"ok"):"bad");
+  pill.lastElementChild.textContent = active?(left<=3?"Скоро закончится":"Подписка активна"):"Подписка неактивна";
+  $("shield").classList.toggle("off",!active);
+
+  const srv = SERVERS.find(s=>s.id===state.server);
+  $("stServer").textContent = srv.flag;
+  $("stDevices").textContent = state.devices.length+"/"+state.devicesMax;
+  $("keyBox").textContent = active ? state.key : "Ключ появится после оплаты";
+
+  $("pUntil").textContent = active ? fmtDate(state.until) : "Нет активной подписки";
+  $("pDevices").textContent = state.devices.length+" из "+state.devicesMax;
+  $("pServer").textContent = srv.flag+" "+srv.name;
+  $("hdrBalance").textContent = rub(state.balance);
+}
+function copyKey(){ if(!state.active) return go("plans"); copy(state.key); }
+function openHapp(){
+  if(!state.active){ toast("Сначала оформите подписку"); return go("plans"); }
+  // Happ поддерживает deeplink happ://add/<ссылка_подписки>
+  const url = "happ://add/"+state.key;
+  completeTask("connect", true);
+  if(tg?.openLink) tg.openLink(url); else location.href=url;
+}
+
+/* =====================================================================
+   ТАРИФЫ
+   ===================================================================== */
+let selDev=1, selPeriod=1, useBonus=false;
+document.querySelectorAll("#devSeg button").forEach(b=>b.onclick=()=>{
+  selDev=+b.dataset.d; haptic();
+  document.querySelectorAll("#devSeg button").forEach(x=>x.classList.toggle("on",x===b));
+  renderPlans();
+});
+function planPrice(p){ const base=PRICES[selDev]*p.m; return {base, price:Math.round(base*(1-p.disc/100))}; }
+function renderPlans(){
+  $("plansList").innerHTML = PERIODS.map((p,i)=>{
+    const {base,price}=planPrice(p);
+    return `<button class="plan ${i===selPeriod?"sel":""}" onclick="selPeriod=${i};haptic();renderPlans()">
+      ${p.badge?`<span class="badge">${p.badge}</span>`:""}
+      <div class="radio"></div>
+      <div><b>${p.label}</b><div class="small muted">${rub(Math.round(price/p.m))}/мес${p.disc?` · −${p.disc}%`:""}</div></div>
+      <div class="price">${p.disc?`<div class="old">${rub(base)}</div>`:""}<b>${rub(price)}</b></div>
+    </button>`;
+  }).join("");
+  const {price}=planPrice(PERIODS[selPeriod]);
+  const maxBonus = Math.min(state.balance, Math.floor(price*0.5)); // бонусами — до 50% стоимости
+  $("payBonusHint").textContent = `Доступно: ${rub(state.balance)} · можно списать до ${rub(maxBonus)}`;
+  const total = price - (useBonus?maxBonus:0);
+  $("total").textContent = rub(total);
+  $("payBtn").textContent = "Оплатить "+rub(total);
+}
+function toggleBonus(){ useBonus=!useBonus; $("useBonus").classList.toggle("on",useBonus); haptic(); renderPlans(); }
+async function pay(){
+  const p=PERIODS[selPeriod], {price}=planPrice(p);
+  const bonus = useBonus?Math.min(state.balance, Math.floor(price*0.5)):0;
+  haptic("medium");
+  if(CONFIG.API_URL){
+    // Бэкенд создаёт счёт и возвращает ссылку (tg invoice / ЮKassa и т.п.)
+    try{
+      const r = await api("/invoice",{devices:selDev, months:p.m, bonus});
+      if(r.invoice_link && tg?.openInvoice){
+        tg.openInvoice(r.invoice_link, s=>{ if(s==="paid"){ notify(); toast("Оплачено ✓"); load(); } });
+      } else if(r.url) openLink(r.url);
+    }catch(e){ notify("error"); toast("Ошибка оплаты"); }
+    return;
+  }
+  // демо
+  const confirmMsg = `Оплатить ${p.label} (${selDev} уст.) за ${rub(price-bonus)}?`;
+  const done=()=>{
+    const base=Math.max(Date.now(),state.until);
+    state.until=base+p.m*30*864e5; state.total=Math.ceil((state.until-Date.now())/864e5);
+    state.active=true; state.devicesMax=selDev; state.balance-=bonus;
+    if(bonus) state.history.unshift({t:"Оплата бонусами",v:-bonus,d:Date.now()});
+    state.payments.unshift({t:`${p.label} · ${selDev} уст.`,v:price-bonus,d:Date.now()});
+    useBonus=false; $("useBonus").classList.remove("on");
+    save(); renderAll(); notify(); confetti(); toast("Подписка продлена 🎉"); go("home");
+  };
+  if(tg?.showConfirm) tg.showConfirm(confirmMsg, ok=>ok&&done()); else if(confirm(confirmMsg)) done();
+}
+
+/* =====================================================================
+   БОНУСЫ
+   ===================================================================== */
+function sameDay(a,b){ const x=new Date(a),y=new Date(b); return x.toDateString()===y.toDateString(); }
+function dailyAvailable(){ return !state.lastClaim || !sameDay(state.lastClaim, Date.now()); }
+function renderBonus(){
+  $("bBalance").textContent = rub(state.balance);
+  // если пропустил день — серия сбрасывается
+  if(state.lastClaim && Date.now()-state.lastClaim > 2*864e5 && !sameDay(state.lastClaim+864e5,Date.now())) { state.streak=0; }
+  const s = state.streak % 7, avail = dailyAvailable();
+  $("days").innerHTML = DAILY.map((v,i)=>{
+    const done = i < s || (!avail && i < (s||7) && s===0 && state.streak>0);
+    const today = avail && i===s;
+    return `<div class="day ${i<s?"done":""} ${today?"today":""}">${i+1} д<b>+${v}</b></div>`;
+  }).join("");
+  $("streakPill").textContent = `🔥 ${state.streak} ${plural(state.streak,"день","дня","дней")}`;
+  const btn=$("dailyBtn");
+  btn.disabled=!avail;
+  btn.textContent = avail ? `Забрать +${DAILY[s]} ₽` : "Приходите завтра ✓";
+  $("bonusNb").style.display = avail?"grid":"none";
+
+  $("refLink").textContent = refLink();
+  $("refCount").textContent = state.ref.count;
+  $("refPaid").textContent = state.ref.paid;
+  $("refEarn").textContent = rub(state.ref.earn);
+
+  const lvlIdx = LEVELS.reduce((a,l,i)=>state.ref.count>=l.need?i:a,0);
+  $("levels").innerHTML = LEVELS.map((l,i)=>`<div class="${i===lvlIdx?"cur":""}"><b>${i<=lvlIdx?"⭐":"🔒"} ${l.name}</b><span class="muted">${l.need?`от ${l.need} друзей`:"старт"}</span><div style="margin-top:4px">${l.perk}</div></div>`).join("");
+
+  $("tasks").innerHTML = TASKS.map(t=>{
+    const done = state.tasksDone.includes(t.id);
+    const d = t.id==="invite3" ? `Прогресс: ${Math.min(state.ref.count,3)}/3` : t.d;
+    return `<div class="task"><div class="ic" style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(47,123,255,.18)">${t.ic}</div>
+      <div style="flex:1"><b style="font-size:14px">${t.t}</b><div class="small muted">${d}</div></div>
+      ${done?`<span class="pill ok">Готово</span>`:`<button class="btn sm" onclick="doTask('${t.id}')">+${t.rw} ₽</button>`}
+    </div>`;
+  }).join("");
+
+  $("history").innerHTML = state.history.length ? state.history.slice(0,10).map(h=>`<div class="item"><div class="grow"><b style="font-size:14px">${h.t}</b><div class="small muted">${fmtShort(h.d)}</div></div><b style="color:${h.v>0?"var(--ok)":"var(--bad)"}">${h.v>0?"+":""}${rub(h.v)}</b></div>`).join("")
+    : `<div class="item muted">Пока пусто</div>`;
+}
+function addBonus(v,t){ state.balance+=v; state.history.unshift({t,v,d:Date.now()}); save(); renderAll(); }
+async function claimDaily(){
+  if(!dailyAvailable()) return;
+  if(CONFIG.API_URL){ try{ await api("/bonus/daily",{}); }catch(e){ return toast("Ошибка"); } }
+  const v=DAILY[state.streak%7];
+  state.streak++; state.lastClaim=Date.now();
+  addBonus(v,`Ежедневный бонус · день ${state.streak}`);
+  notify(); confetti(); toast(`+${v} ₽ на баланс 🎁`);
+}
+function refLink(){ return `https://t.me/${CONFIG.BOT_USERNAME}?start=ref_${tgUser.id}`; }
+function copyRef(){ copy(refLink()); }
+function shareRef(){
+  haptic();
+  const text="Пользуюсь этим VPN — быстрый и без ограничений. По моей ссылке +7 дней бесплатно 🎁";
+  const u=`https://t.me/share/url?url=${encodeURIComponent(refLink())}&text=${encodeURIComponent(text)}`;
+  tg?.openTelegramLink ? tg.openTelegramLink(u) : window.open(u);
+}
+function shareStory(){
+  if(tg?.shareToStory){
+    tg.shareToStory("https://dummyimage.com/1080x1920/0c1d3a/58a6ff.png&text=VPN", {text:"Мой VPN 🔒 "+refLink(), widget_link:{url:refLink(),name:"Подключить"}});
+    setTimeout(()=>completeTask("story"),1500);
+  } else { toast("Обновите Telegram для сторис"); }
+}
+function doTask(id){
+  const t=TASKS.find(x=>x.id===id);
+  if(t.auto && state.ref.count<3){ t.act(); return; }
+  t.act();
+  if(id==="channel") setTimeout(()=>completeTask(id),1500); // в проде проверяйте подписку на бэкенде (getChatMember)
+  if(t.auto) completeTask(id);
+}
+function completeTask(id, silent){
+  if(state.tasksDone.includes(id)) return;
+  const t=TASKS.find(x=>x.id===id);
+  state.tasksDone.push(id);
+  addBonus(t.rw,"Задание: "+t.t);
+  if(!silent){ notify(); toast(`+${t.rw} ₽ за задание`); }
+}
+const DEMO_PROMOS = {"WELCOME":50, "VPN2026":100, "FRIEND":30};
+async function applyPromo(){
+  const code=$("promo").value.trim().toUpperCase();
+  if(!code) return;
+  if(state.promos.includes(code)){ notify("error"); return toast("Промокод уже использован"); }
+  let v = 0;
+  if(CONFIG.API_URL){ try{ v=(await api("/promo",{code})).amount; }catch(e){ v=0; } }
+  else v = DEMO_PROMOS[code]||0;
+  if(!v){ notify("error"); return toast("Промокод не найден"); }
+  state.promos.push(code); $("promo").value="";
+  addBonus(v,"Промокод "+code); notify(); confetti(); toast(`+${v} ₽ по промокоду`);
+}
+
+/* =====================================================================
+   НИЖНИЕ ЛИСТЫ
+   ===================================================================== */
+let sheetOpen=false;
+function openSheet(kind){
+  haptic(); sheetOpen=true; tg?.BackButton.show();
+  $("sheetBody").innerHTML = SHEETS[kind]();
+  $("overlay").classList.add("show"); $("sheet").classList.add("show");
+  if(kind==="qr") drawQR();
+}
+function closeSheet(){
+  sheetOpen=false; $("overlay").classList.remove("show"); $("sheet").classList.remove("show");
+  if(cur==="home") tg?.BackButton.hide();
+}
+const SHEETS = {
+  qr:()=>`<h1 style="font-size:20px">QR-код</h1><p class="muted small mt">Отсканируйте в Happ на другом устройстве: «+» → «Сканировать QR»</p>
+    <div style="background:#fff;border-radius:18px;padding:16px;margin:18px auto;width:max-content"><img id="qrImg" width="220" height="220" alt="QR"></div>
+    <button class="btn" onclick="closeSheet()">Готово</button>`,
+  guide:()=>`<h1 style="font-size:20px">Как подключиться</h1>
+    <div class="steps mt2">
+      <div class="step"><div>Установите приложение <b>Happ</b> — ссылки на главной в разделе «Скачать Happ».</div></div>
+      <div class="step"><div>Нажмите <b>«Подключиться в Happ»</b> — ключ добавится автоматически. Или скопируйте ключ и в Happ нажмите «+» → «Вставить из буфера».</div></div>
+      <div class="step"><div>Выберите сервер и нажмите большую кнопку включения.</div></div>
+      <div class="step"><div>Разрешите добавить VPN-конфигурацию, если телефон спросит. Готово ✅</div></div>
+    </div>
+    <button class="btn mt2" onclick="closeSheet();openHapp()">Подключиться сейчас</button>`,
+  servers:()=>`<h1 style="font-size:20px">Локации</h1><p class="muted small mt">Все серверы доступны в Happ после обновления подписки</p>
+    <div class="list mt2">${SERVERS.map(s=>`<button class="item srv" onclick="pickServer('${s.id}')"><span class="flag">${s.flag}</span><div class="grow"><b>${s.name}</b><div class="ping" style="color:${s.ping<50?"var(--ok)":s.ping<100?"var(--warn)":"var(--bad)"}">${s.ping} мс</div></div>${s.id===state.server?'<span class="pill">Выбран</span>':""}</button>`).join("")}</div>`,
+  devices:()=>`<h1 style="font-size:20px">Мои устройства</h1><p class="muted small mt">Подключено ${state.devices.length} из ${state.devicesMax}</p>
+    <div class="list mt2">${state.devices.map((d,i)=>`<div class="item"><div class="ic">📱</div><div class="grow"><b>${d.name}</b><div class="small muted">Активность: ${d.last}</div></div><button class="btn ghost sm" onclick="removeDevice(${i})">Отключить</button></div>`).join("")||'<div class="item muted">Нет устройств</div>'}</div>
+    <button class="btn ghost mt2" onclick="closeSheet();go('plans')">Нужно больше устройств?</button>`,
+  payments:()=>`<h1 style="font-size:20px">История платежей</h1>
+    <div class="list mt2">${state.payments.map(p=>`<div class="item"><div class="ic">🧾</div><div class="grow"><b>${p.t}</b><div class="small muted">${fmtDate(p.d)}</div></div><b>${rub(p.v)}</b></div>`).join("")||'<div class="item muted">Платежей нет</div>'}</div>`,
+  faq:()=>`<h1 style="font-size:20px">Частые вопросы</h1><div class="mt2">
+    <details><summary>VPN не подключается</summary><p>Обновите подписку в Happ (свайп вниз по списку серверов), попробуйте другую локацию. Если не помогло — напишите в поддержку.</p></details>
+    <details><summary>Сколько устройств можно подключить?</summary><p>Зависит от тарифа: 1, 3 или 5 устройств. Лишние устройства можно отключить в профиле.</p></details>
+    <details><summary>Как работают бонусы?</summary><p>1 бонус = 1 ₽. Бонусами можно оплатить до 50% стоимости подписки. Их дают за ежедневный вход, задания, промокоды и приглашённых друзей.</p></details>
+    <details><summary>Ведёте ли вы логи?</summary><p>Нет. Мы не храним историю посещённых сайтов.</p></details>
+    <details><summary>Можно вернуть деньги?</summary><p>Да, в течение 3 дней после оплаты, если VPN у вас не заработал. Напишите в поддержку.</p></details>
+    <details><summary>Ключ украли / поделился случайно</summary><p>Профиль → «Перевыпустить ключ». Старый ключ перестанет работать.</p></details>
+    </div><button class="btn mt2" onclick="openSupport()">Задать вопрос</button>`,
+  terms:()=>`<h1 style="font-size:20px">Условия</h1><p class="muted mt" style="line-height:1.55;font-size:14px">Сервис предоставляет доступ к защищённому соединению. Мы не храним журналы активности. Оплата не возвращается после 3 дней использования. Используя сервис, вы соглашаетесь соблюдать законодательство своей страны.<br><br>Замените этот текст на свою оферту и политику конфиденциальности.</p>`,
+};
+function pickServer(id){ state.server=id; save(); renderAll(); notify(); closeSheet(); toast("Сервер изменён — обновите подписку в Happ"); }
+function removeDevice(i){ state.devices.splice(i,1); save(); renderAll(); haptic(); openSheet("devices"); }
+function resetKey(){
+  const run=()=>{ state.key=state.key.replace(/-[a-z0-9]+$/,"-"+Math.random().toString(36).slice(2,8)); state.devices=[]; save(); renderAll(); notify(); toast("Новый ключ создан"); };
+  tg?.showConfirm ? tg.showConfirm("Старый ключ перестанет работать на всех устройствах. Продолжить?", ok=>ok&&run()) : confirm("Перевыпустить ключ?")&&run();
+}
+function drawQR(){ $("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=0&data="+encodeURIComponent(state.key); }
+
+/* =====================================================================
+   КОНФЕТТИ
+   ===================================================================== */
+function confetti(){
+  const c=$("confetti"), x=c.getContext("2d"); c.width=innerWidth; c.height=innerHeight;
+  const cols=["#2f7bff","#58a6ff","#3fd0ff","#ffffff","#1f5fe0"];
+  const P=Array.from({length:90},()=>({x:c.width/2,y:c.height/3,vx:(Math.random()-.5)*12,vy:Math.random()*-12-3,s:Math.random()*6+4,c:cols[Math.random()*5|0],r:Math.random()*6}));
+  let f=0;(function tick(){ x.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.35;p.r+=.2;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);x.restore();});
+    if(++f<110) requestAnimationFrame(tick); else x.clearRect(0,0,c.width,c.height); })();
+}
+
+/* =====================================================================
+   ЗАПУСК
+   ===================================================================== */
+function renderAll(){ renderHome(); renderPlans(); renderBonus(); }
+async function load(){
+  if(CONFIG.API_URL){
+    try{ const s=await api("/me"); if(s) state={...state,...s}; }catch(e){ toast("Нет связи с сервером"); }
+  }
+  renderAll();
+}
+// открыть нужную вкладку по start_param: t.me/bot/app?startapp=bonus
+const sp = tg?.initDataUnsafe?.start_param;
+load().then(()=>{ if(["plans","bonus","profile"].includes(sp)) go(sp); });
+</script>
+</body>
+</html>
